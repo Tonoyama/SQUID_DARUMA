@@ -252,20 +252,22 @@ def imageflow_demo(predictor, current_time, args):
             outputs, img_info = predictor.inference(frame, timer)
             #cv2.imshow("Web Cam", img_info['raw_img'])
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            cv2.imshow("Web Cam Gray", gray)
 
             if avg is None:
                 avg = gray.copy().astype("float")
                 continue
 
             # 現在のフレームと移動平均との差を計算
-            cv2.accumulateWeighted(gray, avg, 0.6)
+            cv2.accumulateWeighted(gray, avg, 0.8)
             frameDelta = cv2.absdiff(gray, cv2.convertScaleAbs(avg))
             # デルタ画像を閾値処理を行う
             thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)[1]
             # 画像の閾値に輪郭線を入れる
             contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            frame = cv2.drawContours(frame, contours, -1, (0, 255, 0), 3)
+            for target in contours:
+                x, y, w, h = cv2.boundingRect(target)
+                if w < 50: continue # 小さな変更点は無視
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
 
             if outputs[0] is not None:
                 online_targets = tracker.update(outputs[0], [img_info['height'], img_info['width']], exp.test_size)
