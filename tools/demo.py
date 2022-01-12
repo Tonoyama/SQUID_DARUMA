@@ -219,6 +219,8 @@ def image_demo(predictor, vis_folder, current_time, args):
             os.makedirs(save_folder, exist_ok=True)
             cv2.imwrite(osp.join(save_folder, osp.basename(img_path)), online_im)
 
+        if frame_id % 20 == 0:
+            logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1. / max(1e-5, timer.average_time)))
 
         ch = cv2.waitKey(0)
         if ch == 27 or ch == ord("q") or ch == ord("Q"):
@@ -231,42 +233,32 @@ def image_demo(predictor, vis_folder, current_time, args):
         logger.info(f"save results to {res_file}")
 
 
-def imageflow_demo(predictor, current_time, args):
+def imageflow_demo(predictor, vis_folder, current_time, args):
     cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
-    WINDOW_NAME = 'SQUID GAME:Red light, Green light'
-    #cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
-    #cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
     fps = cap.get(cv2.CAP_PROP_FPS)
     timestamp = time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
+    save_folder = osp.join(vis_folder, timestamp)
+    os.makedirs(save_folder, exist_ok=True)
+    if args.demo == "video":
+        save_path = osp.join(save_folder, args.path.split("/")[-1])
+    else:
+        save_path = osp.join(save_folder, "camera.mp4")
+    logger.info(f"video save_path is {save_path}")
+    vid_writer = cv2.VideoWriter(
+        save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width), int(height))
+    )
     tracker = BYTETracker(args, frame_rate=30)
     timer = Timer()
     frame_id = 0
     results = []
-    avg = None
     while True:
+        if frame_id % 20 == 0:
+            logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1. / max(1e-5, timer.average_time)))
         ret_val, frame = cap.read()
-        frame = cv2.flip(frame, 1)
         if ret_val:
             outputs, img_info = predictor.inference(frame, timer)
-            #cv2.imshow("Web Cam", img_info['raw_img'])
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            cv2.imshow("Web Cam Gray", gray)
-
-            if avg is None:
-                avg = gray.copy().astype("float")
-                continue
-
-            # 現在のフレームと移動平均との差を計算
-            cv2.accumulateWeighted(gray, avg, 0.6)
-            frameDelta = cv2.absdiff(gray, cv2.convertScaleAbs(avg))
-            # デルタ画像を閾値処理を行う
-            thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)[1]
-            # 画像の閾値に輪郭線を入れる
-            contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            frame = cv2.drawContours(frame, contours, -1, (0, 255, 0), 3)
-
             if outputs[0] is not None:
                 online_targets = tracker.update(outputs[0], [img_info['height'], img_info['width']], exp.test_size)
                 online_tlwhs = []
@@ -287,11 +279,11 @@ def imageflow_demo(predictor, current_time, args):
                 online_im = plot_tracking(
                     img_info['raw_img'], online_tlwhs, online_ids, frame_id=frame_id + 1, fps=1. / timer.average_time
                 )
-                cv2.imshow(WINDOW_NAME, online_im)
             else:
                 timer.toc()
                 online_im = img_info['raw_img']
-
+            if args.save_result:
+                vid_writer.write(online_im)
             ch = cv2.waitKey(1)
             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                 break
@@ -370,7 +362,7 @@ def main(exp, args):
     if args.demo == "image":
         image_demo(predictor, vis_folder, current_time, args)
     elif args.demo == "video" or args.demo == "webcam":
-        imageflow_demo(predictor, current_time, args)
+        imageflow_demo(predictor, vis_folder, current_time, args)
 
 
 if __name__ == "__main__":
