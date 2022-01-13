@@ -4,7 +4,8 @@ import os.path as osp
 import time
 import cv2
 import torch
-
+from playsound import playsound
+import threading
 from loguru import logger
 
 from yolox.data.data_augment import preproc
@@ -250,24 +251,6 @@ def imageflow_demo(predictor, current_time, args):
         frame = cv2.flip(frame, 1)
         if ret_val:
             outputs, img_info = predictor.inference(frame, timer)
-            #cv2.imshow("Web Cam", img_info['raw_img'])
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-            if avg is None:
-                avg = gray.copy().astype("float")
-                continue
-
-            # 現在のフレームと移動平均との差を計算
-            cv2.accumulateWeighted(gray, avg, 0.8)
-            frameDelta = cv2.absdiff(gray, cv2.convertScaleAbs(avg))
-            # デルタ画像を閾値処理を行う
-            thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)[1]
-            # 画像の閾値に輪郭線を入れる
-            contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            for target in contours:
-                x, y, w, h = cv2.boundingRect(target)
-                if w < 50: continue # 小さな変更点は無視
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
 
             if outputs[0] is not None:
                 online_targets = tracker.update(outputs[0], [img_info['height'], img_info['width']], exp.test_size)
@@ -285,9 +268,55 @@ def imageflow_demo(predictor, current_time, args):
                         results.append(
                             f"{frame_id},{tid},{tlwh[0]:.2f},{tlwh[1]:.2f},{tlwh[2]:.2f},{tlwh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
                         )
+
+                        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+                        if avg is None:
+                            avg = gray.copy().astype("float")
+                            continue
+
+                        # 現在のフレームと移動平均との差を計算
+                        cv2.accumulateWeighted(gray, avg, 0.93)
+                        frameDelta = cv2.absdiff(gray, cv2.convertScaleAbs(avg))
+                        # デルタ画像を閾値処理を行う
+                        thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)[1]
+                        # ymin:ymax,xmin:xmax
+                        x1, y1, w, h = tlwh
+                        intbox = tuple(map(int, (x1, y1, x1+w, y1+h)))
+                        intbox = [0 if i < 0 else i for i in intbox]
+                        thresh = thresh[intbox[1]:intbox[3],intbox[0]:intbox[2]]
+                        cv2.imshow("web cam", thresh)
+
+                        # 画像の閾値に輪郭線を入れる
+                        contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        contours = list(filter(lambda x: cv2.contourArea(x) > 100, contours))
+                        contours_area = 0
+                        for i in range(len(contours)):
+                            area = cv2.contourArea(contours[i])
+                            contours_area += area
+                        print(contours_area)
+
+                        contours_frame = frame[intbox[1]:intbox[3],intbox[0]:intbox[2]]
+
+                        #print(contours_area)
+                        cv2.drawContours(contours_frame, contours, -1, color=(0, 0, 255), thickness=2)
+
+                        SOUND = "/home/yudai/Dev/python/daruma/SQUID_DARUMA/tools/sound/handgun.mp3"
+                        def cycle(path):
+                            while 1:
+                                playsound(path)
+
+                        def play(path,cyc=False):
+                            if cyc:
+                                cycle(path)
+                            else:
+                                playsound(path)
+                        music=threading.Thread(target=play,args=(SOUND,))
+                        #if contours_area > 10000:
+	                    #    music.run()
                 timer.toc()
                 online_im = plot_tracking(
-                    img_info['raw_img'], online_tlwhs, online_ids, frame_id=frame_id + 1, fps=1. / timer.average_time
+                    img_info['raw_img'], online_tlwhs, online_ids, online_scores, frame_id=frame_id + 1, fps=1. / timer.average_time
                 )
                 cv2.imshow(WINDOW_NAME, online_im)
             else:
