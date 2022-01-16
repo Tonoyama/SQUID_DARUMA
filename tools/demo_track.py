@@ -344,8 +344,6 @@ def imageflow_demo(predictor, current_time, args):
                     else:
                         playsound(path)
                 music=threading.Thread(target=play,args=(SOUND,))
-                #if contours_area > 10000:
-                #    music.run()
                 timer.toc()
                 online_im = plot_tracking(
                     img_info['raw_img'], online_tlwhs, online_ids, online_scores, frame_id=frame_id + 1, fps=1. / timer.average_time
