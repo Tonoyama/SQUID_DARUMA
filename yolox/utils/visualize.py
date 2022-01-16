@@ -41,7 +41,7 @@ def vis(img, boxes, scores, cls_ids, conf=0.5, class_names=None):
 
     return img
 
-
+# 矩形の色を決める
 def get_color(idx):
     idx = idx * 3
     color = ((37 * idx) % 255, (17 * idx) % 255, (29 * idx) % 255)

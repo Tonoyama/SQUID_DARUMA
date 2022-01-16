@@ -1,5 +1,6 @@
 import argparse
 import os
+import copy
 import os.path as osp
 import time
 import cv2
@@ -232,6 +233,11 @@ def image_demo(predictor, vis_folder, current_time, args):
         logger.info(f"save results to {res_file}")
 
 
+def count_down(t):
+    for num in range(t,-1,-1):
+        print(num)
+
+
 def imageflow_demo(predictor, current_time, args):
     cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
     WINDOW_NAME = 'SQUID GAME:Red light, Green light'
@@ -245,7 +251,7 @@ def imageflow_demo(predictor, current_time, args):
     timer = Timer()
     frame_id = 0
     results = []
-    avg = None
+    avg, avg_a= None, None
     while True:
         ret_val, frame = cap.read()
         frame = cv2.flip(frame, 1)
@@ -269,51 +275,62 @@ def imageflow_demo(predictor, current_time, args):
                             f"{frame_id},{tid},{tlwh[0]:.2f},{tlwh[1]:.2f},{tlwh[2]:.2f},{tlwh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
                         )
 
-                        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                for i, tlwh in enumerate(online_tlwhs):
+                    obj_id = int(online_ids[i])
+                    #ymin:ymax,xmin:xmax
+                    x1, y1, w, h = tlwh
+                    intbox = tuple(map(int, (x1, y1, x1+w, y1+h)))
+                    intbox = [0 if i < 0 else i for i in intbox]
 
-                        if avg is None:
-                            avg = gray.copy().astype("float")
-                            continue
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-                        # 現在のフレームと移動平均との差を計算
-                        cv2.accumulateWeighted(gray, avg, 0.93)
-                        frameDelta = cv2.absdiff(gray, cv2.convertScaleAbs(avg))
-                        # デルタ画像を閾値処理を行う
-                        thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)[1]
-                        # ymin:ymax,xmin:xmax
-                        x1, y1, w, h = tlwh
-                        intbox = tuple(map(int, (x1, y1, x1+w, y1+h)))
-                        intbox = [0 if i < 0 else i for i in intbox]
-                        thresh = thresh[intbox[1]:intbox[3],intbox[0]:intbox[2]]
-                        cv2.imshow("web cam", thresh)
+                    if avg is None:
+                        avg = gray.copy().astype("float")
+                        continue
 
-                        # 画像の閾値に輪郭線を入れる
-                        contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                        contours = list(filter(lambda x: cv2.contourArea(x) > 100, contours))
-                        contours_area = 0
-                        for i in range(len(contours)):
-                            area = cv2.contourArea(contours[i])
-                            contours_area += area
-                        print(contours_area)
+                    # 現在のフレームと移動平均との差を計算
+                    cv2.accumulateWeighted(gray, avg, 0.93)
+                    frameDelta = cv2.absdiff(gray, cv2.convertScaleAbs(avg))
 
-                        contours_frame = frame[intbox[1]:intbox[3],intbox[0]:intbox[2]]
+                    # デルタ画像を閾値処理を行う
+                    ret, thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)
+                    #全体の画素数
+                    thresh = thresh[intbox[1]:intbox[3],intbox[0]:intbox[2]]
+                    whole_area = thresh.size
+                    #白部分の画素数
+                    white_area=cv2.countNonZero(thresh)
+                    white_area = white_area/whole_area*100
+                    print(obj_id, white_area)
+                    cv2.imshow("N",thresh)
 
-                        #print(contours_area)
-                        cv2.drawContours(contours_frame, contours, -1, color=(0, 0, 255), thickness=2)
+                gray_a = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-                        SOUND = "/home/yudai/Dev/python/daruma/SQUID_DARUMA/tools/sound/handgun.mp3"
-                        def cycle(path):
-                            while 1:
-                                playsound(path)
+                if avg_a is None:
+                    avg_a = gray_a.copy().astype("float")
+                    continue
 
-                        def play(path,cyc=False):
-                            if cyc:
-                                cycle(path)
-                            else:
-                                playsound(path)
-                        music=threading.Thread(target=play,args=(SOUND,))
-                        #if contours_area > 10000:
-	                    #    music.run()
+                # 現在のフレームと移動平均との差を計算
+                cv2.accumulateWeighted(gray_a, avg_a, 0.93)
+                frameDelta = cv2.absdiff(gray_a, cv2.convertScaleAbs(avg_a))
+                thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)[1]
+                contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                contours = list(filter(lambda x: cv2.contourArea(x) > 100, contours))
+
+                cv2.drawContours(frame, contours, -1, color=(0, 0, 255), thickness=2)
+
+                SOUND = os.path.abspath("sound/handgun.mp3")
+                def cycle(path):
+                    while 1:
+                        playsound(path)
+
+                def play(path,cyc=False):
+                    if cyc:
+                        cycle(path)
+                    else:
+                        playsound(path)
+                music=threading.Thread(target=play,args=(SOUND,))
+                #if contours_area > 10000:
+                #    music.run()
                 timer.toc()
                 online_im = plot_tracking(
                     img_info['raw_img'], online_tlwhs, online_ids, online_scores, frame_id=frame_id + 1, fps=1. / timer.average_time
