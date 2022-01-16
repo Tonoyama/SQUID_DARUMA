@@ -360,11 +360,6 @@ def imageflow_demo(predictor, current_time, args):
             break
         frame_id += 1
 
-    if args.save_result:
-        res_file = osp.join(vis_folder, f"{timestamp}.txt")
-        with open(res_file, 'w') as f:
-            f.writelines(results)
-        logger.info(f"save results to {res_file}")
 
 
 def main(exp, args):
