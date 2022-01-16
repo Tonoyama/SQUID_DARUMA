@@ -8,6 +8,7 @@ import torch
 from playsound import playsound
 import threading
 from loguru import logger
+import numpy as np
 
 from yolox.data.data_augment import preproc
 from yolox.exp import get_exp
@@ -233,6 +234,12 @@ def image_demo(predictor, vis_folder, current_time, args):
         logger.info(f"save results to {res_file}")
 
 
+def create_gamma_img(gamma, img):
+    gamma_cvt = np.zeros((256,1), dtype=np.uint8)
+    for i in range(256):
+        gamma_cvt[i][0] = 255*(float(i)/255)**(1.0/gamma)
+    return cv2.LUT(img, gamma_cvt)
+
 def count_down(t):
     for num in range(t,-1,-1):
         print(num)
@@ -252,6 +259,7 @@ def imageflow_demo(predictor, current_time, args):
     frame_id = 0
     results = []
     avg, avg_a= None, None
+    thresh = None
     while True:
         ret_val, frame = cap.read()
         frame = cv2.flip(frame, 1)
@@ -263,6 +271,7 @@ def imageflow_demo(predictor, current_time, args):
                 online_tlwhs = []
                 online_ids = []
                 online_scores = []
+                testint = 0
                 for t in online_targets:
                     tlwh = t.tlwh
                     tid = t.track_id
@@ -293,14 +302,20 @@ def imageflow_demo(predictor, current_time, args):
                     frameDelta = cv2.absdiff(gray, cv2.convertScaleAbs(avg))
 
                     # デルタ画像を閾値処理を行う
-                    ret, thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)
+                    #thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)[1]
+
+                    if testint == 0:
+                        thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)[1]
+                    testint += 1
+                    # print(cv2.countNonZero(thresh))
                     #全体の画素数
-                    thresh = thresh[intbox[1]:intbox[3],intbox[0]:intbox[2]]
-                    whole_area = thresh.size
+                    thresh1 = thresh[intbox[1]:intbox[3],intbox[0]:intbox[2]]
+                    whole_area = thresh1.size
                     #白部分の画素数
-                    white_area=cv2.countNonZero(thresh)
+                    white_area = cv2.countNonZero(thresh1)
                     white_area = white_area/whole_area*100
                     print(obj_id, white_area)
+
                     cv2.imshow("N",thresh)
 
                 gray_a = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
