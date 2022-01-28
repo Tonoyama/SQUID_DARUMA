@@ -314,6 +314,12 @@ def imageflow_demo(predictor, current_time, args):
                     #白部分の画素数
                     white_area = cv2.countNonZero(thresh1)
                     white_area = white_area/whole_area*100
+
+                    SOUND = os.path.abspath("tools/sound/handgun.mp3")
+                        
+                    if white_area > 2:
+                        playsound(SOUND, block=False)
+
                     print(obj_id, white_area)
 
                     cv2.imshow("N",thresh)
@@ -333,17 +339,6 @@ def imageflow_demo(predictor, current_time, args):
 
                 cv2.drawContours(frame, contours, -1, color=(0, 0, 255), thickness=2)
 
-                SOUND = os.path.abspath("sound/handgun.mp3")
-                def cycle(path):
-                    while 1:
-                        playsound(path)
-
-                def play(path,cyc=False):
-                    if cyc:
-                        cycle(path)
-                    else:
-                        playsound(path)
-                music=threading.Thread(target=play,args=(SOUND,))
                 timer.toc()
                 online_im = plot_tracking(
                     img_info['raw_img'], online_tlwhs, online_ids, online_scores, frame_id=frame_id + 1, fps=1. / timer.average_time
