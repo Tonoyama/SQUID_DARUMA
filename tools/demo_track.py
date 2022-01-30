@@ -1,4 +1,5 @@
 import argparse
+from array import array
 import os
 import copy
 import os.path as osp
@@ -9,6 +10,7 @@ from playsound import playsound
 import threading
 from loguru import logger
 import numpy as np
+from PIL import Image
 
 from yolox.data.data_augment import preproc
 from yolox.exp import get_exp
@@ -248,8 +250,8 @@ def count_down(t):
 def imageflow_demo(predictor, current_time, args):
     cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
     WINDOW_NAME = 'SQUID GAME:Red light, Green light'
-    #cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
-    #cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -271,7 +273,7 @@ def imageflow_demo(predictor, current_time, args):
                 online_tlwhs = []
                 online_ids = []
                 online_scores = []
-                testint = 0
+                counter = 0
                 for t in online_targets:
                     tlwh = t.tlwh
                     tid = t.track_id
@@ -301,12 +303,9 @@ def imageflow_demo(predictor, current_time, args):
                     cv2.accumulateWeighted(gray, avg, 0.93)
                     frameDelta = cv2.absdiff(gray, cv2.convertScaleAbs(avg))
 
-                    # デルタ画像を閾値処理を行う
-                    #thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)[1]
-
-                    if testint == 0:
+                    if counter == 0:
                         thresh = cv2.threshold(frameDelta, 3, 255, cv2.THRESH_BINARY)[1]
-                    testint += 1
+                    counter += 1
                     # print(cv2.countNonZero(thresh))
                     #全体の画素数
                     thresh1 = thresh[intbox[1]:intbox[3],intbox[0]:intbox[2]]
@@ -315,14 +314,60 @@ def imageflow_demo(predictor, current_time, args):
                     white_area = cv2.countNonZero(thresh1)
                     white_area = white_area/whole_area*100
 
-                    SOUND = os.path.abspath("tools/sound/handgun.mp3")
-                        
+                    SOUND = os.path.abspath("tools/sound/shotgun.mp3")
+
                     if white_area > 2:
                         playsound(SOUND, block=False)
-
+                    
                     print(obj_id, white_area)
 
-                    cv2.imshow("N",thresh)
+                    BAKUHATSU_IMG = os.path.abspath("tools/image/bakuhatsu.png")
+                    BAKUHATSU_IMG = cv2.imread(BAKUHATSU_IMG)
+                    # 画像をリサイズ
+                    BAKUHATSU_IMG = cv2.resize(BAKUHATSU_IMG, dsize=(int(w/5), int(h/12)))
+                    height, width = BAKUHATSU_IMG.shape[:2]
+
+                    image = img_info['raw_img']
+                    # キャプチャ画像の縦、横
+                    img_h, img_w = image.shape[:2]
+
+                    x = int(x1+w/3)
+                    y = int(y1+h/3)
+                    y_height = int(y+height)
+                    x_width = int(x+width)
+
+                    alpha = 0.2 # コントラスト項目
+                    beta = 0    # 明るさ項目
+
+                    image_height = img_h - y
+                    image_width = img_w - x
+                    print("Y")
+                    print(y, height, y_height)
+                    print(image_height)
+                    print("X")
+                    print(x, width, x_width)
+                    print(image_width)
+                    if white_area > 2:
+                        # 画面を暗くする
+                        dark_image = image[intbox[1]:intbox[3],intbox[0]:intbox[2]]
+                        res_image = cv2.convertScaleAbs(dark_image, alpha=alpha, beta=beta)
+                        image[intbox[1]:intbox[3],intbox[0]:intbox[2]] = res_image
+
+                        if y_height >= img_h and image_height > 0:
+                            y_height = img_h
+                            BAKUHATSU_IMG = cv2.resize(BAKUHATSU_IMG, dsize=(int(w/7), int(image_height)))
+                            #image[int(y):int(img_h), int(x):int(x+width)] = BAKUHATSU_IMG
+                        elif x_width >= img_w and image_width > 0:
+                            x_width = img_w
+                            BAKUHATSU_IMG = cv2.resize(BAKUHATSU_IMG, dsize=(int(image_width), int(h/15)))
+                            print("画面外")
+                            #image[int(y):int(y+height), int(x):int(img_w)] = BAKUHATSU_IMG
+                        elif image_height <= 0 or y <= 0:
+                            print("画面外")
+                        elif image_width <= 0 or x <= 0:
+                            print("画面外")
+                        else:
+                            image[int(y):int(y+height), int(x):int(x+width)] = BAKUHATSU_IMG
 
                 gray_a = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
