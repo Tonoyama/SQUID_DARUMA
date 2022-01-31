@@ -11,6 +11,8 @@ import threading
 from loguru import logger
 import numpy as np
 from PIL import Image
+from playsound import playsound
+from blessed import Terminal
 
 from yolox.data.data_augment import preproc
 from yolox.exp import get_exp
@@ -22,6 +24,26 @@ from yolox.tracking_utils.timer import Timer
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
+READY_IMG = os.path.abspath("image/ready.png")
+COUNTDOWN_IMG = os.path.abspath("image/countdown.png")
+START_IMG = os.path.abspath("image/start.png")
+RUN_IMG = os.path.abspath("image/run.png")
+GOAL_IMG = os.path.abspath("image/goal.png")
+DROPOUT_IMG = os.path.abspath("image/dropout.png")
+END_IMG = os.path.abspath("image/end.png")
+READY_IMG = cv2.imread(READY_IMG)
+COUNTDOWN_IMG = cv2.imread(COUNTDOWN_IMG)
+START_IMG = cv2.imread(START_IMG)
+RUN_IMG = cv2.imread(RUN_IMG)
+GOAL_IMG = cv2.imread(GOAL_IMG)
+DROPOUT_IMG = cv2.imread(DROPOUT_IMG)
+END_IMG = cv2.imread(END_IMG)
+
+BGM = os.path.abspath("sound/pink_soldiers.mp3")
+LEVELUP_SOUND = os.path.abspath("sound/levelup.mp3")
+ONI_SOUND = os.path.abspath("sound/oni_sound.mp3")
+COUNTDOWN_SOUND = os.path.abspath("sound/countdown.mp3")
+DOOM_SOUND = os.path.abspath("sound/doom.mp3")
 
 def make_parser():
     parser = argparse.ArgumentParser("ByteTrack Demo!")
@@ -179,63 +201,6 @@ class Predictor(object):
             #logger.info("Infer time: {:.4f}s".format(time.time() - t0))
         return outputs, img_info
 
-
-def image_demo(predictor, vis_folder, current_time, args):
-    if osp.isdir(args.path):
-        files = get_image_list(args.path)
-    else:
-        files = [args.path]
-    files.sort()
-    tracker = BYTETracker(args, frame_rate=args.fps)
-    timer = Timer()
-    results = []
-
-    for frame_id, img_path in enumerate(files, 1):
-        outputs, img_info = predictor.inference(img_path, timer)
-        if outputs[0] is not None:
-            online_targets = tracker.update(outputs[0], [img_info['height'], img_info['width']], exp.test_size)
-            online_tlwhs = []
-            online_ids = []
-            online_scores = []
-            for t in online_targets:
-                tlwh = t.tlwh
-                tid = t.track_id
-                vertical = tlwh[2] / tlwh[3] > args.aspect_ratio_thresh
-                if tlwh[2] * tlwh[3] > args.min_box_area and not vertical:
-                    online_tlwhs.append(tlwh)
-                    online_ids.append(tid)
-                    online_scores.append(t.score)
-                    # save results
-                    results.append(
-                        f"{frame_id},{tid},{tlwh[0]:.2f},{tlwh[1]:.2f},{tlwh[2]:.2f},{tlwh[3]:.2f},{t.score:.2f},-1,-1,-1\n"
-                    )
-            timer.toc()
-            online_im = plot_tracking(
-                img_info['raw_img'], online_tlwhs, online_ids, frame_id=frame_id, fps=1. / timer.average_time
-            )
-        else:
-            timer.toc()
-            online_im = img_info['raw_img']
-
-        # result_image = predictor.visual(outputs[0], img_info, predictor.confthre)
-        if args.save_result:
-            timestamp = time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
-            save_folder = osp.join(vis_folder, timestamp)
-            os.makedirs(save_folder, exist_ok=True)
-            cv2.imwrite(osp.join(save_folder, osp.basename(img_path)), online_im)
-
-
-        ch = cv2.waitKey(0)
-        if ch == 27 or ch == ord("q") or ch == ord("Q"):
-            break
-
-    if args.save_result:
-        res_file = osp.join(vis_folder, f"{timestamp}.txt")
-        with open(res_file, 'w') as f:
-            f.writelines(results)
-        logger.info(f"save results to {res_file}")
-
-
 def create_gamma_img(gamma, img):
     gamma_cvt = np.zeros((256,1), dtype=np.uint8)
     for i in range(256):
@@ -247,11 +212,11 @@ def count_down(t):
         print(num)
 
 
-def imageflow_demo(predictor, current_time, args):
+def imageflow(predictor, current_time, args):
     cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
     WINDOW_NAME = 'SQUID GAME:Red light, Green light'
-    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    #cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
+    #cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -262,6 +227,7 @@ def imageflow_demo(predictor, current_time, args):
     results = []
     avg, avg_a= None, None
     thresh = None
+    killed_id = []
     while True:
         ret_val, frame = cap.read()
         frame = cv2.flip(frame, 1)
@@ -274,6 +240,7 @@ def imageflow_demo(predictor, current_time, args):
                 online_ids = []
                 online_scores = []
                 counter = 0
+                white_area = 0
                 for t in online_targets:
                     tlwh = t.tlwh
                     tid = t.track_id
@@ -318,8 +285,7 @@ def imageflow_demo(predictor, current_time, args):
 
                     if white_area > 2:
                         playsound(SOUND, block=False)
-                    
-                    print(obj_id, white_area)
+                        print(obj_id, white_area, tlwh)
 
                     BAKUHATSU_IMG = os.path.abspath("tools/image/bakuhatsu.png")
                     BAKUHATSU_IMG = cv2.imread(BAKUHATSU_IMG)
@@ -336,38 +302,39 @@ def imageflow_demo(predictor, current_time, args):
                     y_height = int(y+height)
                     x_width = int(x+width)
 
-                    alpha = 0.2 # コントラスト項目
-                    beta = 0    # 明るさ項目
+                    # white_areaが一定以上の場合、obj_idをリストに保存
+                    if white_area > 2 and obj_id not in killed_id:
+                        killed_id.append(obj_id)
+                    
+                    # 動いた判定をされた場合、バウンディングボックス内を暗くする
+                    for i in killed_id:
+                        if obj_id == i:
 
-                    image_height = img_h - y
-                    image_width = img_w - x
-                    print("Y")
-                    print(y, height, y_height)
-                    print(image_height)
-                    print("X")
-                    print(x, width, x_width)
-                    print(image_width)
-                    if white_area > 2:
-                        # 画面を暗くする
-                        dark_image = image[intbox[1]:intbox[3],intbox[0]:intbox[2]]
-                        res_image = cv2.convertScaleAbs(dark_image, alpha=alpha, beta=beta)
-                        image[intbox[1]:intbox[3],intbox[0]:intbox[2]] = res_image
+                            alpha = 0.2 # コントラスト項目
+                            beta = 0    # 明るさ項目
 
-                        if y_height >= img_h and image_height > 0:
-                            y_height = img_h
-                            BAKUHATSU_IMG = cv2.resize(BAKUHATSU_IMG, dsize=(int(w/7), int(image_height)))
-                            #image[int(y):int(img_h), int(x):int(x+width)] = BAKUHATSU_IMG
-                        elif x_width >= img_w and image_width > 0:
-                            x_width = img_w
-                            BAKUHATSU_IMG = cv2.resize(BAKUHATSU_IMG, dsize=(int(image_width), int(h/15)))
-                            print("画面外")
-                            #image[int(y):int(y+height), int(x):int(img_w)] = BAKUHATSU_IMG
-                        elif image_height <= 0 or y <= 0:
-                            print("画面外")
-                        elif image_width <= 0 or x <= 0:
-                            print("画面外")
-                        else:
-                            image[int(y):int(y+height), int(x):int(x+width)] = BAKUHATSU_IMG
+                            image_height = img_h - y
+                            image_width = img_w - x
+                            # 画面を暗くする
+                            dark_image = image[intbox[1]:intbox[3],intbox[0]:intbox[2]]
+                            res_image = cv2.convertScaleAbs(dark_image, alpha=alpha, beta=beta)
+                            image[intbox[1]:intbox[3],intbox[0]:intbox[2]] = res_image
+
+                            if y_height >= img_h and image_height > 0:
+                                y_height = img_h
+                                BAKUHATSU_IMG = cv2.resize(BAKUHATSU_IMG, dsize=(int(w/7), int(image_height)))
+                                #image[int(y):int(img_h), int(x):int(x+width)] = BAKUHATSU_IMG
+                            elif x_width >= img_w and image_width > 0:
+                                x_width = img_w
+                                BAKUHATSU_IMG = cv2.resize(BAKUHATSU_IMG, dsize=(int(image_width), int(h/15)))
+                                print("画面外")
+                                #image[int(y):int(y+height), int(x):int(img_w)] = BAKUHATSU_IMG
+                            elif image_height <= 0 or y <= 0:
+                                print("画面外")
+                            elif image_width <= 0 or x <= 0:
+                                print("画面外")
+                            else:
+                                image[int(y):int(y+height), int(x):int(x+width)] = BAKUHATSU_IMG
 
                 gray_a = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -463,10 +430,8 @@ def main(exp, args):
 
     predictor = Predictor(model, exp, trt_file, decoder, args.device, args.fp16)
     current_time = time.localtime()
-    if args.demo == "image":
-        image_demo(predictor, vis_folder, current_time, args)
-    elif args.demo == "video" or args.demo == "webcam":
-        imageflow_demo(predictor, current_time, args)
+    
+    imageflow(predictor, current_time, args)
 
 
 if __name__ == "__main__":
