@@ -24,13 +24,13 @@ from yolox.tracking_utils.timer import Timer
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
-READY_IMG = os.path.abspath("image/ready.png")
-COUNTDOWN_IMG = os.path.abspath("image/countdown.png")
-START_IMG = os.path.abspath("image/start.png")
-RUN_IMG = os.path.abspath("image/run.png")
-GOAL_IMG = os.path.abspath("image/goal.png")
-DROPOUT_IMG = os.path.abspath("image/dropout.png")
-END_IMG = os.path.abspath("image/end.png")
+READY_IMG = os.path.abspath("tools/image/ready.png")
+COUNTDOWN_IMG = os.path.abspath("tools/image/countdown.png")
+START_IMG = os.path.abspath("tools/image/start.png")
+RUN_IMG = os.path.abspath("tools/image/run.png")
+GOAL_IMG = os.path.abspath("tools/image/goal.png")
+DROPOUT_IMG = os.path.abspath("tools/image/dropout.png")
+END_IMG = os.path.abspath("tools/image/end.png")
 READY_IMG = cv2.imread(READY_IMG)
 COUNTDOWN_IMG = cv2.imread(COUNTDOWN_IMG)
 START_IMG = cv2.imread(START_IMG)
@@ -39,11 +39,11 @@ GOAL_IMG = cv2.imread(GOAL_IMG)
 DROPOUT_IMG = cv2.imread(DROPOUT_IMG)
 END_IMG = cv2.imread(END_IMG)
 
-BGM = os.path.abspath("sound/pink_soldiers.mp3")
-LEVELUP_SOUND = os.path.abspath("sound/levelup.mp3")
-ONI_SOUND = os.path.abspath("sound/oni_sound.mp3")
-COUNTDOWN_SOUND = os.path.abspath("sound/countdown.mp3")
-DOOM_SOUND = os.path.abspath("sound/doom.mp3")
+BGM = os.path.abspath("tools/sound/pink_soldiers.mp3")
+LEVELUP_SOUND = os.path.abspath("tools/sound/levelup.mp3")
+ONI_SOUND = os.path.abspath("tools/sound/oni_sound.mp3")
+COUNTDOWN_SOUND = os.path.abspath("tools/sound/countdown.mp3")
+DOOM_SOUND = os.path.abspath("tools/sound/doom.mp3")
 
 def make_parser():
     parser = argparse.ArgumentParser("ByteTrack Demo!")
@@ -212,8 +212,7 @@ def count_down(t):
         print(num)
 
 
-def imageflow(predictor, current_time, args):
-    cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
+def imageflow(cap, predictor, current_time, args):
     WINDOW_NAME = 'SQUID GAME:Red light, Green light'
     #cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
     #cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
@@ -283,10 +282,6 @@ def imageflow(predictor, current_time, args):
 
                     SOUND = os.path.abspath("tools/sound/shotgun.mp3")
 
-                    if white_area > 2:
-                        playsound(SOUND, block=False)
-                        print(obj_id, white_area, tlwh)
-
                     BAKUHATSU_IMG = os.path.abspath("tools/image/bakuhatsu.png")
                     BAKUHATSU_IMG = cv2.imread(BAKUHATSU_IMG)
                     # 画像をリサイズ
@@ -303,7 +298,8 @@ def imageflow(predictor, current_time, args):
                     x_width = int(x+width)
 
                     # white_areaが一定以上の場合、obj_idをリストに保存
-                    if white_area > 2 and obj_id not in killed_id:
+                    if white_area > 1 and obj_id not in killed_id:
+                        playsound(SOUND, block=False)
                         killed_id.append(obj_id)
                     
                     # 動いた判定をされた場合、バウンディングボックス内を暗くする
@@ -355,7 +351,7 @@ def imageflow(predictor, current_time, args):
                 online_im = plot_tracking(
                     img_info['raw_img'], online_tlwhs, online_ids, online_scores, frame_id=frame_id + 1, fps=1. / timer.average_time
                 )
-                cv2.imshow(WINDOW_NAME, online_im)
+                return len(killed_id), online_im
             else:
                 timer.toc()
                 online_im = img_info['raw_img']
@@ -431,7 +427,90 @@ def main(exp, args):
     predictor = Predictor(model, exp, trt_file, decoder, args.device, args.fp16)
     current_time = time.localtime()
     
-    imageflow(predictor, current_time, args)
+    WINDOW_NAME = 'SQUID GAME:Red light, Green light'
+
+    cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
+
+    t = Terminal()
+    with t.cbreak():
+        while True:
+            print("スタート画像")
+            cv2.imshow(WINDOW_NAME, READY_IMG)
+            ch = cv2.waitKey(1)
+
+            k = t.inkey(timeout=0.001)
+            if not k:
+                pass
+            elif k.is_sequence:
+                if k.name == 'KEY_ENTER':
+                    WAIT_TIME = 5
+                    for i in range(0, WAIT_TIME+1):
+                        time.sleep(1)
+                        countdown_img_copy = COUNTDOWN_IMG.copy()
+                        cv2.putText(countdown_img_copy, '%d' % (WAIT_TIME - i),(370, 430), cv2.FONT_HERSHEY_SIMPLEX, 10, (0, 0, 0), thickness=20)
+                        cv2.imshow(WINDOW_NAME, countdown_img_copy)
+                        ch = cv2.waitKey(1)
+                        if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                            break
+                        playsound(COUNTDOWN_SOUND, block=False)
+                        print("ゲームスタートまで %d" % (WAIT_TIME - i))
+
+                    time.sleep(1)
+                    cv2.imshow(WINDOW_NAME, START_IMG)
+                    ch = cv2.waitKey(1)
+                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                        break
+                    playsound(DOOM_SOUND, block=False)
+                    time.sleep(3)
+
+                    killed_num = 0
+                    for i in range(2):
+                        print("ゴールまで走れ(Press G Key)")
+                        playsound(ONI_SOUND, block=False)
+                        print("ムグンファコッチピオッスムニダ")
+                        time.sleep(6)
+                        timestamp = time.time()
+                        while(time.time()-timestamp<20):
+                            killed_num, online_im = imageflow(cap, predictor, current_time, args)
+                            cv2.imshow(WINDOW_NAME, online_im)
+                            ch = cv2.waitKey(1)
+                            if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                                break
+                            print("BBOX処理")
+                            key = t.inkey(timeout=0.001)
+                            if not key:
+                                pass
+                            elif key.is_sequence:
+                                if key.name == "KEY_BACKSPACE":
+                                    cv2.imshow(WINDOW_NAME, GOAL_IMG)
+                                    ch = cv2.waitKey(1)
+                                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                                        break
+                                    playsound(LEVELUP_SOUND)
+                                    time.sleep(10)
+                                    print("ゴールした!")
+                            # cv2.imshow(WINDOW_NAME, RUN_IMG)
+                            # ch = cv2.waitKey(1)
+                            # if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                            #     break
+
+                        time.sleep(2)
+                        print("%d人脱落" % killed_num)
+                        dropout_img_copy = DROPOUT_IMG.copy()
+                        cv2.putText(dropout_img_copy, '%d' % killed_num,(200, 330), cv2.FONT_HERSHEY_SIMPLEX, 10, (0, 0, 0), thickness=20)
+                        cv2.imshow(WINDOW_NAME, dropout_img_copy)
+                        ch = cv2.waitKey(1)
+                        if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                            break
+                        time.sleep(3)
+                    
+                    print("終了!")
+                    cv2.imshow(WINDOW_NAME, END_IMG)
+                    ch = cv2.waitKey(1)
+                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                        break
+                    time.sleep(3)
+                    print("全員のBBOXに撃たれた画像を表示")
 
 
 if __name__ == "__main__":
