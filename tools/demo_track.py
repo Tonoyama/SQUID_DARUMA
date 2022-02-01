@@ -207,15 +207,12 @@ def create_gamma_img(gamma, img):
         gamma_cvt[i][0] = 255*(float(i)/255)**(1.0/gamma)
     return cv2.LUT(img, gamma_cvt)
 
-def count_down(t):
-    for num in range(t,-1,-1):
-        print(num)
 
-
-def imageflow(cap, predictor, current_time, args):
+def imageflow(cap, predictor, current_time, args, timelimit):
     WINDOW_NAME = 'SQUID GAME:Red light, Green light'
-    #cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
-    #cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    #cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
+    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -227,7 +224,8 @@ def imageflow(cap, predictor, current_time, args):
     avg, avg_a= None, None
     thresh = None
     killed_id = []
-    while True:
+    timestamp = time.time()
+    while time.time()-timestamp<timelimit:
         ret_val, frame = cap.read()
         frame = cv2.flip(frame, 1)
         if ret_val:
@@ -298,7 +296,7 @@ def imageflow(cap, predictor, current_time, args):
                     x_width = int(x+width)
 
                     # white_areaが一定以上の場合、obj_idをリストに保存
-                    if white_area > 1 and obj_id not in killed_id:
+                    if white_area > 2 and obj_id not in killed_id:
                         playsound(SOUND, block=False)
                         killed_id.append(obj_id)
                     
@@ -351,7 +349,8 @@ def imageflow(cap, predictor, current_time, args):
                 online_im = plot_tracking(
                     img_info['raw_img'], online_tlwhs, online_ids, online_scores, frame_id=frame_id + 1, fps=1. / timer.average_time
                 )
-                return len(killed_id), online_im
+                cv2.imshow(WINDOW_NAME, online_im)
+                print("BBOX処理")
             else:
                 timer.toc()
                 online_im = img_info['raw_img']
@@ -359,9 +358,11 @@ def imageflow(cap, predictor, current_time, args):
             ch = cv2.waitKey(1)
             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                 break
+            
         else:
             break
         frame_id += 1
+    return killed_id
 
 
 
@@ -428,15 +429,18 @@ def main(exp, args):
     current_time = time.localtime()
     
     WINDOW_NAME = 'SQUID GAME:Red light, Green light'
-
-    cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
-
+    # cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
+    # imageflow(cap, predictor, current_time, args)
+    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     t = Terminal()
     with t.cbreak():
         while True:
             print("スタート画像")
             cv2.imshow(WINDOW_NAME, READY_IMG)
             ch = cv2.waitKey(1)
+            if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                break
 
             k = t.inkey(timeout=0.001)
             if not k:
@@ -463,46 +467,24 @@ def main(exp, args):
                     playsound(DOOM_SOUND, block=False)
                     time.sleep(3)
 
-                    killed_num = 0
-                    for i in range(2):
-                        print("ゴールまで走れ(Press G Key)")
-                        playsound(ONI_SOUND, block=False)
-                        print("ムグンファコッチピオッスムニダ")
-                        time.sleep(6)
-                        timestamp = time.time()
-                        while(time.time()-timestamp<20):
-                            killed_num, online_im = imageflow(cap, predictor, current_time, args)
-                            cv2.imshow(WINDOW_NAME, online_im)
-                            ch = cv2.waitKey(1)
-                            if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                                break
-                            print("BBOX処理")
-                            key = t.inkey(timeout=0.001)
-                            if not key:
-                                pass
-                            elif key.is_sequence:
-                                if key.name == "KEY_BACKSPACE":
-                                    cv2.imshow(WINDOW_NAME, GOAL_IMG)
-                                    ch = cv2.waitKey(1)
-                                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                                        break
-                                    playsound(LEVELUP_SOUND)
-                                    time.sleep(10)
-                                    print("ゴールした!")
-                            # cv2.imshow(WINDOW_NAME, RUN_IMG)
-                            # ch = cv2.waitKey(1)
-                            # if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                            #     break
+                    killed_id = 0
+                    cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
+                    print("ゴールまで走れ(Press G Key)")
+                    playsound(ONI_SOUND, block=False)
+                    print("ムグンファコッチピオッスムニダ")
+                    time.sleep(6)
+                    timestamp = time.time()
+                    killed_id = imageflow(cap, predictor, current_time, args,10)
 
-                        time.sleep(2)
-                        print("%d人脱落" % killed_num)
-                        dropout_img_copy = DROPOUT_IMG.copy()
-                        cv2.putText(dropout_img_copy, '%d' % killed_num,(200, 330), cv2.FONT_HERSHEY_SIMPLEX, 10, (0, 0, 0), thickness=20)
-                        cv2.imshow(WINDOW_NAME, dropout_img_copy)
-                        ch = cv2.waitKey(1)
-                        if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                            break
-                        time.sleep(3)
+                    time.sleep(2)
+                    print("%d人脱落" % int(len(killed_id)))
+                    dropout_img_copy = DROPOUT_IMG.copy()
+                    cv2.putText(dropout_img_copy, '%d' % int(len(killed_id)),(200, 330), cv2.FONT_HERSHEY_SIMPLEX, 10, (0, 0, 0), thickness=20)
+                    cv2.imshow(WINDOW_NAME, dropout_img_copy)
+                    ch = cv2.waitKey(1)
+                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                        break
+                    time.sleep(3)
                     
                     print("終了!")
                     cv2.imshow(WINDOW_NAME, END_IMG)
@@ -510,8 +492,6 @@ def main(exp, args):
                     if ch == 27 or ch == ord("q") or ch == ord("Q"):
                         break
                     time.sleep(3)
-                    print("全員のBBOXに撃たれた画像を表示")
-
 
 if __name__ == "__main__":
     args = make_parser().parse_args()
