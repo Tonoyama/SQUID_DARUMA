@@ -63,7 +63,6 @@ def make_parser():
         #"--path", default="./datasets/mot/train/MOT17-05-FRCNN/img1", help="path to images or video"
         "--path", default="./videos/palace.mp4", help="path to images or video"
     )
-    parser.add_argument("--camid", type=int, default=0, help="webcam demo camera id")
     parser.add_argument(
         "--save_result",
         action="store_true",
@@ -216,7 +215,6 @@ def create_gamma_img(gamma, img):
 
 def imageflow(cap, predictor, current_time, args, timelimit):
     WINDOW_NAME = 'SQUID GAME:Red light, Green light'
-    #cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
     cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
@@ -437,8 +435,7 @@ def main(exp, args):
     WINDOW_NAME = 'SQUID GAME:Red light, Green light'
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
     cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
-
+    cap = cv2.VideoCapture(-1)
     while True:
         print("スタート画像")
         cv2.imshow(WINDOW_NAME, READY_IMG)
@@ -446,7 +443,7 @@ def main(exp, args):
         if ch == 27 or ch == ord("q") or ch == ord("Q"):
             break
         elif ch == ord("a") or ch == ord("A"):
-            WAIT_TIME = 5
+            WAIT_TIME = 1
             for i in range(0, WAIT_TIME+1):
                 time.sleep(1)
                 countdown_img_copy = COUNTDOWN_IMG.copy()
@@ -459,34 +456,55 @@ def main(exp, args):
                 print("ゲームスタートまで %d" % (WAIT_TIME - i))
 
             time.sleep(1)
-            cv2.imshow(WINDOW_NAME, START_IMG)
-            ch = cv2.waitKey(1)
-            if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                break
             playsound(DOOM_SOUND, block=False)
-            time.sleep(3)
+            timestamp = time.time()
+            while time.time()-timestamp<3:
+                ret_val, frame = cap.read()
+                frame = cv2.flip(frame, 1)
+                fg_h, fg_w = frame.shape[:2]
+                M = cv2.getRotationMatrix2D(center=(1150, 560), angle=0, scale=0.4)
 
-            id = []
-            count = 0
-            ITERATION = 3
-            for i in range(ITERATION):
-                cv2.imshow(WINDOW_NAME, RUN_IMG)
+                h, w = START_IMG.shape[:2]
+                dst = cv2.warpAffine(
+                    frame, M, dsize=(w, h), dst=START_IMG, borderMode=cv2.BORDER_TRANSPARENT
+                )
+                cv2.imshow(WINDOW_NAME, dst)
                 ch = cv2.waitKey(1)
                 if ch == 27 or ch == ord("q") or ch == ord("Q"):
                     break
-                print("ゴールまで走れ(Press G Key)")
-                if count == ITERATION-1:
+
+            id = []
+            count = 0
+            # ナレーションの繰り返し回数
+            ITERATION = 3
+            # 速い音声を何回目以降から流すか
+            FAST_SOUND = 2
+            for i in range(ITERATION):
+                if count >= ITERATION-FAST_SOUND:
                     playsound(ONI_6X_SOUND, block=False)
-                    time.sleep(1)
+                    SOUND_TIME = 1
                 else:
                     playsound(ONI_3X_SOUND, block=False)
-                    time.sleep(2)
+                    SOUND_TIME = 2
+                
+                TIME_STAMP = time.time()
+                while time.time()-TIME_STAMP<SOUND_TIME:
+                    ret_val, frame = cap.read()
+                    frame = cv2.flip(frame, 1)
+                    fg_h, fg_w = frame.shape[:2]
+                    M = cv2.getRotationMatrix2D(center=(1150, 560), angle=0, scale=0.4)
+
+                    h, w = RUN_IMG.shape[:2]
+                    dst = cv2.warpAffine(frame, M, dsize=(w, h), dst=RUN_IMG, borderMode=cv2.BORDER_TRANSPARENT)
+                    cv2.imshow(WINDOW_NAME, dst)
+                    ch = cv2.waitKey(1)
+                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                        break
+                    print("ゴールまで走れ(Press G Key)")
 
                 print("ムグンファコッチピオッスムニダ")
-                timestamp = time.time()
                 TIME_LIMIT = 3
                 killed_id = imageflow(cap, predictor, current_time, args, TIME_LIMIT)
-                time.sleep(0.5)
                 id += killed_id
                 if int(len(killed_id)) != 0:
                     print("画面から退出してください")
