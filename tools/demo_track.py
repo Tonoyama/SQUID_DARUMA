@@ -442,8 +442,11 @@ def main(exp, args):
         ch = cv2.waitKey(1)
         if ch == 27 or ch == ord("q") or ch == ord("Q"):
             break
+        # a キーでゲームスタート
         elif ch == ord("a") or ch == ord("A"):
+            # ゲームスタートまでの秒数
             WAIT_TIME = 1
+
             for i in range(0, WAIT_TIME+1):
                 time.sleep(1)
                 countdown_img_copy = COUNTDOWN_IMG.copy()
@@ -459,16 +462,7 @@ def main(exp, args):
             playsound(DOOM_SOUND, block=False)
             timestamp = time.time()
             while time.time()-timestamp<3:
-                ret_val, frame = cap.read()
-                frame = cv2.flip(frame, 1)
-                fg_h, fg_w = frame.shape[:2]
-                M = cv2.getRotationMatrix2D(center=(1150, 560), angle=0, scale=0.4)
-
-                h, w = START_IMG.shape[:2]
-                dst = cv2.warpAffine(
-                    frame, M, dsize=(w, h), dst=START_IMG, borderMode=cv2.BORDER_TRANSPARENT
-                )
-                cv2.imshow(WINDOW_NAME, dst)
+                cv2.imshow(WINDOW_NAME, START_IMG)
                 ch = cv2.waitKey(1)
                 if ch == 27 or ch == ord("q") or ch == ord("Q"):
                     break
@@ -533,6 +527,8 @@ def main(exp, args):
             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                 break
             time.sleep(3)
+        else:
+            None
 
 if __name__ == "__main__":
     args = make_parser().parse_args()
