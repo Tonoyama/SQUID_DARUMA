@@ -29,19 +29,24 @@ COUNTDOWN_IMG = os.path.abspath("tools/image/countdown.png")
 START_IMG = os.path.abspath("tools/image/start.png")
 RUN_IMG = os.path.abspath("tools/image/run.png")
 GOAL_IMG = os.path.abspath("tools/image/goal.png")
+FRAME_OUT_IMG = os.path.abspath("tools/image/frame_out.png")
 DROPOUT_IMG = os.path.abspath("tools/image/dropout.png")
 END_IMG = os.path.abspath("tools/image/end.png")
+
 READY_IMG = cv2.imread(READY_IMG)
 COUNTDOWN_IMG = cv2.imread(COUNTDOWN_IMG)
 START_IMG = cv2.imread(START_IMG)
 RUN_IMG = cv2.imread(RUN_IMG)
 GOAL_IMG = cv2.imread(GOAL_IMG)
+FRAME_OUT_IMG = cv2.imread(FRAME_OUT_IMG)
 DROPOUT_IMG = cv2.imread(DROPOUT_IMG)
 END_IMG = cv2.imread(END_IMG)
 
 BGM = os.path.abspath("tools/sound/pink_soldiers.mp3")
 LEVELUP_SOUND = os.path.abspath("tools/sound/levelup.mp3")
 ONI_SOUND = os.path.abspath("tools/sound/oni_sound.mp3")
+ONI_3X_SOUND = os.path.abspath("tools/sound/oni_3x.mp3")
+ONI_6X_SOUND = os.path.abspath("tools/sound/oni_6x.mp3")
 COUNTDOWN_SOUND = os.path.abspath("tools/sound/countdown.mp3")
 DOOM_SOUND = os.path.abspath("tools/sound/doom.mp3")
 
@@ -429,69 +434,85 @@ def main(exp, args):
     current_time = time.localtime()
     
     WINDOW_NAME = 'SQUID GAME:Red light, Green light'
-    # cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
-    # imageflow(cap, predictor, current_time, args)
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
     cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    t = Terminal()
-    with t.cbreak():
-        while True:
-            print("スタート画像")
-            cv2.imshow(WINDOW_NAME, READY_IMG)
+    cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
+
+    while True:
+        print("スタート画像")
+        cv2.imshow(WINDOW_NAME, READY_IMG)
+        ch = cv2.waitKey(1)
+        if ch == 27 or ch == ord("q") or ch == ord("Q"):
+            break
+        elif ch == ord("a") or ch == ord("A"):
+            WAIT_TIME = 5
+            for i in range(0, WAIT_TIME+1):
+                time.sleep(1)
+                countdown_img_copy = COUNTDOWN_IMG.copy()
+                cv2.putText(countdown_img_copy, '%d' % (WAIT_TIME - i),(370, 430), cv2.FONT_HERSHEY_SIMPLEX, 10, (0, 0, 0), thickness=20)
+                cv2.imshow(WINDOW_NAME, countdown_img_copy)
+                ch = cv2.waitKey(1)
+                if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                    break
+                playsound(COUNTDOWN_SOUND, block=False)
+                print("ゲームスタートまで %d" % (WAIT_TIME - i))
+
+            time.sleep(1)
+            cv2.imshow(WINDOW_NAME, START_IMG)
             ch = cv2.waitKey(1)
             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                 break
+            playsound(DOOM_SOUND, block=False)
+            time.sleep(3)
 
-            k = t.inkey(timeout=0.001)
-            if not k:
-                pass
-            elif k.is_sequence:
-                if k.name == 'KEY_ENTER':
-                    WAIT_TIME = 5
-                    for i in range(0, WAIT_TIME+1):
-                        time.sleep(1)
-                        countdown_img_copy = COUNTDOWN_IMG.copy()
-                        cv2.putText(countdown_img_copy, '%d' % (WAIT_TIME - i),(370, 430), cv2.FONT_HERSHEY_SIMPLEX, 10, (0, 0, 0), thickness=20)
-                        cv2.imshow(WINDOW_NAME, countdown_img_copy)
-                        ch = cv2.waitKey(1)
-                        if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                            break
-                        playsound(COUNTDOWN_SOUND, block=False)
-                        print("ゲームスタートまで %d" % (WAIT_TIME - i))
-
+            id = []
+            count = 0
+            ITERATION = 3
+            for i in range(ITERATION):
+                cv2.imshow(WINDOW_NAME, RUN_IMG)
+                ch = cv2.waitKey(1)
+                if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                    break
+                print("ゴールまで走れ(Press G Key)")
+                if count == ITERATION-1:
+                    playsound(ONI_6X_SOUND, block=False)
                     time.sleep(1)
-                    cv2.imshow(WINDOW_NAME, START_IMG)
-                    ch = cv2.waitKey(1)
-                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                        break
-                    playsound(DOOM_SOUND, block=False)
-                    time.sleep(3)
-
-                    killed_id = 0
-                    cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
-                    print("ゴールまで走れ(Press G Key)")
-                    playsound(ONI_SOUND, block=False)
-                    print("ムグンファコッチピオッスムニダ")
-                    time.sleep(6)
-                    timestamp = time.time()
-                    killed_id = imageflow(cap, predictor, current_time, args,10)
-
+                else:
+                    playsound(ONI_3X_SOUND, block=False)
                     time.sleep(2)
-                    print("%d人脱落" % int(len(killed_id)))
-                    dropout_img_copy = DROPOUT_IMG.copy()
-                    cv2.putText(dropout_img_copy, '%d' % int(len(killed_id)),(200, 330), cv2.FONT_HERSHEY_SIMPLEX, 10, (0, 0, 0), thickness=20)
-                    cv2.imshow(WINDOW_NAME, dropout_img_copy)
+
+                print("ムグンファコッチピオッスムニダ")
+                timestamp = time.time()
+                TIME_LIMIT = 3
+                killed_id = imageflow(cap, predictor, current_time, args, TIME_LIMIT)
+                time.sleep(0.5)
+                id += killed_id
+                if int(len(killed_id)) != 0:
+                    print("画面から退出してください")
+                    cv2.imshow(WINDOW_NAME, FRAME_OUT_IMG)
                     ch = cv2.waitKey(1)
                     if ch == 27 or ch == ord("q") or ch == ord("Q"):
                         break
                     time.sleep(3)
-                    
-                    print("終了!")
-                    cv2.imshow(WINDOW_NAME, END_IMG)
-                    ch = cv2.waitKey(1)
-                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                        break
-                    time.sleep(3)
+                count += 1
+
+            time.sleep(1)
+            print(id)
+            print("%d人脱落" % int(len(id)))
+            dropout_img_copy = DROPOUT_IMG.copy()
+            cv2.putText(dropout_img_copy, '%d' % int(len(id)),(200, 330), cv2.FONT_HERSHEY_SIMPLEX, 10, (0, 0, 0), thickness=20)
+            cv2.imshow(WINDOW_NAME, dropout_img_copy)
+            ch = cv2.waitKey(1)
+            if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                break
+            time.sleep(3)
+            
+            print("終了!")
+            cv2.imshow(WINDOW_NAME, END_IMG)
+            ch = cv2.waitKey(1)
+            if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                break
+            time.sleep(3)
 
 if __name__ == "__main__":
     args = make_parser().parse_args()
