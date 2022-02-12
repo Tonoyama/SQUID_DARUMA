@@ -49,6 +49,7 @@ ONI_3X_SOUND = os.path.abspath("tools/sound/oni_3x.mp3")
 ONI_6X_SOUND = os.path.abspath("tools/sound/oni_6x.mp3")
 COUNTDOWN_SOUND = os.path.abspath("tools/sound/countdown.mp3")
 DOOM_SOUND = os.path.abspath("tools/sound/doom.mp3")
+WHITSLE_SOUND = os.path.abspath("tools/sound/whitsle.mp3")
 
 def make_parser():
     parser = argparse.ArgumentParser("ByteTrack Demo!")
@@ -301,7 +302,7 @@ def imageflow(cap, predictor, current_time, args, timelimit):
                     x_width = int(x+width)
 
                     # white_areaが一定以上の場合、obj_idをリストに保存
-                    if white_area > 2 and obj_id not in killed_id:
+                    if white_area > 5 and obj_id not in killed_id:
                         playsound(SOUND, block=False)
                         killed_id.append(obj_id)
                     
@@ -505,6 +506,7 @@ def main(exp, args):
             ch = cv2.waitKey(1)
             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                 break
+            playsound(WHITSLE_SOUND, block=False)
             time.sleep(3)
             
             print("終了!")
