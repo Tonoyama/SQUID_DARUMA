@@ -518,7 +518,7 @@ def main(exp, args):
                     dst = cv2.warpAffine(frame, M, dsize=(w, h), dst=RUN_AWAY_IMG, borderMode=cv2.BORDER_TRANSPARENT)
                     cv2.imshow(WINDOW_NAME, dst)
                     ch = cv2.waitKey(1)
-                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                    if ch == ord("s") or ch == ord("S"):
                         break
 
                 playsound(TUTORIAL_2_SOUND, block=False)
