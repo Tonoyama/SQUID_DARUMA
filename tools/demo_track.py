@@ -551,7 +551,7 @@ def main(exp, args):
                         ret_val, frame = cap.read()
                         frame = cv2.flip(frame, 1)
                         fg_h, fg_w = frame.shape[:2]
-                        M = cv2.getRotationMatrix2D(center=(1150, 560), angle=0, scale=0.4)
+                        M = cv2.getRotationMatrix2D(center=(700, 30), angle=0, scale=0.6)
 
                         h, w = RUN_IMG.shape[:2]
                         dst = cv2.warpAffine(frame, M, dsize=(w, h), dst=RUN_IMG, borderMode=cv2.BORDER_TRANSPARENT)
@@ -569,10 +569,17 @@ def main(exp, args):
                     id += killed_id
                     
                     # 脱落者が出たとき
-                    if int(len(killed_id)) != 0:
+                    if int(len(killed_id)) == 0:
                         TIME_STAMP = time.time()
                         while time.time()-TIME_STAMP<3:
-                            cv2.imshow(WINDOW_NAME, FRAME_OUT_IMG)
+                            ret_val, frame = cap.read()
+                            frame = cv2.flip(frame, 1)
+                            fg_h, fg_w = frame.shape[:2]
+                            M = cv2.getRotationMatrix2D(center=(800, 100), angle=0, scale=0.7)
+
+                            h, w = FRAME_OUT_IMG.shape[:2]
+                            dst = cv2.warpAffine(frame, M, dsize=(w, h), dst=FRAME_OUT_IMG, borderMode=cv2.BORDER_TRANSPARENT)
+                            cv2.imshow(WINDOW_NAME, dst)
                             ch = cv2.waitKey(1)
                             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                                 break
