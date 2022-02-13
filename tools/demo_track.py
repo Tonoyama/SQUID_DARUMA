@@ -328,6 +328,8 @@ def imageflow(cap, predictor, current_time, args, timelimit):
 
                 cv2.drawContours(frame, contours, -1, color=(0, 0, 255), thickness=2)
 
+                people_num = int(len(online_ids))
+
                 timer.toc()
                 online_im = plot_tracking(
                     img_info['raw_img'], online_tlwhs, online_ids, online_scores, frame_id=frame_id + 1, fps=1. / timer.average_time
@@ -348,7 +350,7 @@ def imageflow(cap, predictor, current_time, args, timelimit):
         else:
             break
         frame_id += 1
-    return killed_id
+    return killed_id, people_num
 
 
 
@@ -481,10 +483,8 @@ def main(exp, args):
             print("スタート画像")
             cv2.imshow(WINDOW_NAME, READY_IMG)
             ch = cv2.waitKey(1)
-            if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                break
             # a キーでゲームスタート
-            elif ch == ord("a") or ch == ord("A"):
+            if ch == ord("a") or ch == ord("A"):
                 """
                 チュートリアル
                 
@@ -584,11 +584,17 @@ def main(exp, args):
                             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                                 break
                         break
-                        
-                    id += imageflow_result
+                    
+                    killed_num, people_num = imageflow(cap, predictor, current_time, args, TIME_LIMIT)
+                    id += killed_num
+                    killed_num = int(len(killed_num))
+
+                    # 撃たれた人と画面に写っている人が同じ場合、終了する
+                    if people_num == killed_num:
+                        break
                     
                     # 脱落者が出たとき
-                    if int(len(imageflow_result)) != 0:
+                    if killed_num != 0:
                         TIME_STAMP = time.time()
                         while time.time()-TIME_STAMP<3:
                             ret_val, frame = cap.read()
