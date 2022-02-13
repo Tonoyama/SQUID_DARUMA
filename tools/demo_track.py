@@ -192,7 +192,7 @@ def create_gamma_img(gamma, img):
     return cv2.LUT(img, gamma_cvt)
 
 
-def imageflow(cap, predictor, current_time, args, timelimit, GOAL_IMG, LEVELUP_SOUND):
+def imageflow(cap, predictor, current_time, args, timelimit):
     WINDOW_NAME = 'SQUID GAME:Red light, Green light'
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO | cv2.WINDOW_NORMAL)
     cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
@@ -408,6 +408,7 @@ def main(exp, args):
 
     BGM = os.path.abspath("tools/sound/pink_soldiers.mp3")
     LEVELUP_SOUND = os.path.abspath("tools/sound/levelup.mp3")
+    GAME_CLEAR_SOUND = os.path.abspath("tools/sound/game_clear.mp3")
     # PCから出来るだけ遠ざかってください
     TUTORIAL_1_SOUND = os.path.abspath("tools/sound/tutorial_1.mp3")
     # 撃たれたら画面外へ退出してください
@@ -561,7 +562,7 @@ def main(exp, args):
                                 print("GAME CLEAR")  
                                 raise GetOutOfLoop
                     except GetOutOfLoop:
-                        playsound(LEVELUP_SOUND, block=False)
+                        playsound(GAME_CLEAR_SOUND, block=False)
                         TIME_STAMP = time.time()
                         while time.time()-TIME_STAMP<3:
                             cv2.imshow(WINDOW_NAME, GOAL_IMG)
@@ -572,10 +573,10 @@ def main(exp, args):
 
                     # 推論画面が表示される秒数
                     TIME_LIMIT = 3
-                    imageflow_result = imageflow(cap, predictor, current_time, args, TIME_LIMIT, GOAL_IMG, LEVELUP_SOUND)
+                    imageflow_result = imageflow(cap, predictor, current_time, args, TIME_LIMIT)
 
                     if imageflow_result == "GAMECLEAR":
-                        playsound(LEVELUP_SOUND, block=False)
+                        playsound(GAME_CLEAR_SOUND, block=False)
                         TIME_STAMP = time.time()
                         while time.time()-TIME_STAMP<3:
                             cv2.imshow(WINDOW_NAME, GOAL_IMG)
