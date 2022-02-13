@@ -336,10 +336,7 @@ def imageflow(cap, predictor, current_time, args, timelimit, GOAL_IMG, LEVELUP_S
                 print("BBOX処理")
                 key = cv2.waitKey(1)
                 if key == ord("g") or key == ord("G"):
-                    print("GAME CLEAR")
-                    cv2.imshow(WINDOW_NAME, GOAL_IMG)
-                    playsound(LEVELUP_SOUND, block=False)
-                    time.sleep(3)
+                    return "GAMECLEAR"
             else:
                 timer.toc()
                 online_im = img_info['raw_img']
@@ -546,35 +543,55 @@ def main(exp, args):
                         playsound(ONI_SOUND, block=False)
                         SOUND_TIME = 2
                     
-                    TIME_STAMP = time.time()
-                    while time.time()-TIME_STAMP<SOUND_TIME:
-                        ret_val, frame = cap.read()
-                        frame = cv2.flip(frame, 1)
-                        fg_h, fg_w = frame.shape[:2]
-                        M = cv2.getRotationMatrix2D(center=(700, 30), angle=0, scale=0.6)
+                    class GetOutOfLoop( Exception ):
+                        pass
 
-                        h, w = RUN_IMG.shape[:2]
-                        dst = cv2.warpAffine(frame, M, dsize=(w, h), dst=RUN_IMG, borderMode=cv2.BORDER_TRANSPARENT)
-                        cv2.imshow(WINDOW_NAME, dst)
-                        ch = cv2.waitKey(1)
-                        if ch == ord("g") or ch == ord("G"):
-                            print("GAME CLEAR")
+                    try:
+                        TIME_STAMP = time.time()
+                        while time.time()-TIME_STAMP<SOUND_TIME:
+                            ret_val, frame = cap.read()
+                            frame = cv2.flip(frame, 1)
+                            M = cv2.getRotationMatrix2D(center=(700, 30), angle=0, scale=0.6)
+
+                            h, w = RUN_IMG.shape[:2]
+                            dst = cv2.warpAffine(frame, M, dsize=(w, h), dst=RUN_IMG, borderMode=cv2.BORDER_TRANSPARENT)
+                            cv2.imshow(WINDOW_NAME, dst)
+                            ch = cv2.waitKey(1)
+                            if ch == ord("g") or ch == ord("G"):
+                                print("GAME CLEAR")  
+                                raise GetOutOfLoop
+                    except GetOutOfLoop:
+                        playsound(LEVELUP_SOUND, block=False)
+                        TIME_STAMP = time.time()
+                        while time.time()-TIME_STAMP<3:
                             cv2.imshow(WINDOW_NAME, GOAL_IMG)
-                            playsound(LEVELUP_SOUND, block=False)
-                            time.sleep(3)
-                        print("ゴールまで走れ(Press G Key)")
+                            ch = cv2.waitKey(1)
+                            if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                                break
+                        break
 
+                    # 推論画面が表示される秒数
                     TIME_LIMIT = 3
-                    killed_id = imageflow(cap, predictor, current_time, args, TIME_LIMIT, GOAL_IMG, LEVELUP_SOUND)
-                    id += killed_id
+                    imageflow_result = imageflow(cap, predictor, current_time, args, TIME_LIMIT, GOAL_IMG, LEVELUP_SOUND)
+
+                    if imageflow_result == "GAMECLEAR":
+                        playsound(LEVELUP_SOUND, block=False)
+                        TIME_STAMP = time.time()
+                        while time.time()-TIME_STAMP<3:
+                            cv2.imshow(WINDOW_NAME, GOAL_IMG)
+                            ch = cv2.waitKey(1)
+                            if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                                break
+                        break
+                        
+                    id += imageflow_result
                     
                     # 脱落者が出たとき
-                    if int(len(killed_id)) == 0:
+                    if int(len(imageflow_result)) != 0:
                         TIME_STAMP = time.time()
                         while time.time()-TIME_STAMP<3:
                             ret_val, frame = cap.read()
                             frame = cv2.flip(frame, 1)
-                            fg_h, fg_w = frame.shape[:2]
                             M = cv2.getRotationMatrix2D(center=(800, 100), angle=0, scale=0.7)
 
                             h, w = FRAME_OUT_IMG.shape[:2]
