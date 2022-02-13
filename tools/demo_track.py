@@ -4,6 +4,7 @@ import os
 import copy
 import os.path as osp
 import time
+from turtle import width
 import cv2
 import torch
 from playsound import playsound
@@ -377,6 +378,7 @@ def main(exp, args):
 
     READY_IMG = IMAGE_DIR_NAME + "ready.png"
 
+    RUN_AWAY_IMG = os.path.abspath("tools/image/run_away.png")
     TUTORIAL_1_IMG = os.path.abspath("tools/image/tutorial_1.png")
     TUTORIAL_2_IMG = os.path.abspath("tools/image/tutorial_2.png")
     TUTORIAL_3_IMG = os.path.abspath("tools/image/tutorial_3.png")
@@ -391,6 +393,7 @@ def main(exp, args):
 
     READY_IMG = cv2.imread(READY_IMG)
     
+    RUN_AWAY_IMG = cv2.imread(RUN_AWAY_IMG)
     TUTORIAL_1_IMG = cv2.imread(TUTORIAL_1_IMG)
     TUTORIAL_2_IMG = cv2.imread(TUTORIAL_2_IMG)
     TUTORIAL_3_IMG = cv2.imread(TUTORIAL_3_IMG)
@@ -413,10 +416,14 @@ def main(exp, args):
     GAME_CLEAR_SOUND = os.path.abspath("tools/sound/game_clear.mp3")
     # PCから出来るだけ遠ざかってください
     TUTORIAL_1_SOUND = os.path.abspath("tools/sound/tutorial_1.mp3")
+    # 画面の赤い線まで下がってください
+    RED_LINE_SOUND = os.path.abspath("tools/sound/red_line.mp3")
     # 撃たれたら画面外へ退出してください
     TUTORIAL_2_SOUND = os.path.abspath("tools/sound/tutorial_2.mp3")
     # キーボードのGキーを制限ターン内に押すとクリアです。
     TUTORIAL_3_SOUND = os.path.abspath("tools/sound/tutorial_3.mp3")
+    SKIP_SOUND = os.path.abspath("tools/sound/skip.mp3")
+
     COUNTDOWN_SOUND = os.path.abspath("tools/sound/countdown.mp3")
     DOOM_SOUND = os.path.abspath("tools/sound/doom.mp3")
     WHITSLE_SOUND = os.path.abspath("tools/sound/whitsle.mp3")
@@ -487,29 +494,53 @@ def main(exp, args):
             if ch == ord("a") or ch == ord("A"):
                 """
                 チュートリアル
-                
-                playsound(TUTORIAL_1_SOUND, block=False)
-                cv2.imshow(WINDOW_NAME, TUTORIAL_1_IMG)
-                ch = cv2.waitKey(1)
-                if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                    break
-                time.sleep(4)
-                playsound(TUTORIAL_2_SOUND, block=False)
-                cv2.imshow(WINDOW_NAME, TUTORIAL_2_IMG)
-                ch = cv2.waitKey(1)
-                if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                    break
-                time.sleep(4)
-                playsound(TUTORIAL_3_SOUND, block=False)
-                cv2.imshow(WINDOW_NAME, TUTORIAL_3_IMG)
-                ch = cv2.waitKey(1)
-                if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                    break
-                time.sleep(4)
                 """
+                TUTORIAL_TIME = 4
+
+                playsound(TUTORIAL_1_SOUND, block=False)
+                TIME_STAMP = time.time()
+                while time.time()-TIME_STAMP<TUTORIAL_TIME:
+                    cv2.imshow(WINDOW_NAME, TUTORIAL_1_IMG)
+                    ch = cv2.waitKey(1)
+                    if ch == ord("s") or ch == ord("S"):
+                        playsound(SKIP_SOUND, block=False)
+                        break
+                
+                playsound(RED_LINE_SOUND, block=False)
+                TIME_STAMP = time.time()
+                while time.time()-TIME_STAMP<TUTORIAL_TIME:
+                    ret_val, frame = cap.read()
+                    frame = cv2.flip(frame, 1)
+                    frame_h, frame_w = frame.shape[:2]
+                    frame = cv2.line(frame,(0,int(frame_h/3)),(int(frame_w),int(frame_h/3)),(0, 0, 255),5)
+                    M = cv2.getRotationMatrix2D(center=(800, 100), angle=0, scale=0.7)
+                    h, w = RUN_AWAY_IMG.shape[:2]
+                    dst = cv2.warpAffine(frame, M, dsize=(w, h), dst=RUN_AWAY_IMG, borderMode=cv2.BORDER_TRANSPARENT)
+                    cv2.imshow(WINDOW_NAME, dst)
+                    ch = cv2.waitKey(1)
+                    if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                        break
+
+                playsound(TUTORIAL_2_SOUND, block=False)
+                TIME_STAMP = time.time()
+                while time.time()-TIME_STAMP<TUTORIAL_TIME:
+                    cv2.imshow(WINDOW_NAME, TUTORIAL_2_IMG)
+                    ch = cv2.waitKey(1)
+                    if ch == ord("s") or ch == ord("S"):
+                        playsound(SKIP_SOUND, block=False)
+                        break
+                
+                playsound(TUTORIAL_3_SOUND, block=False)
+                TIME_STAMP = time.time()
+                while time.time()-TIME_STAMP<TUTORIAL_TIME:
+                    cv2.imshow(WINDOW_NAME, TUTORIAL_3_IMG)
+                    ch = cv2.waitKey(1)
+                    if ch == ord("s") or ch == ord("S"):
+                        playsound(SKIP_SOUND, block=False)
+                        break
 
                 # ゲームスタートまでの待ち時間
-                WAIT_TIME = 1
+                WAIT_TIME = 5
                 for i in range(0, WAIT_TIME+1):
                     time.sleep(1)
                     countdown_img_copy = COUNTDOWN_IMG.copy()
@@ -533,7 +564,7 @@ def main(exp, args):
                 id = []
                 count = 0
                 # ナレーションの繰り返し回数
-                ITERATION = 3
+                ITERATION = 4
                 # 速い音声を何回目以降から流すか
                 FAST_SOUND = 2
                 for i in range(ITERATION):
@@ -553,7 +584,6 @@ def main(exp, args):
                             ret_val, frame = cap.read()
                             frame = cv2.flip(frame, 1)
                             M = cv2.getRotationMatrix2D(center=(700, 30), angle=0, scale=0.6)
-
                             h, w = RUN_IMG.shape[:2]
                             dst = cv2.warpAffine(frame, M, dsize=(w, h), dst=RUN_IMG, borderMode=cv2.BORDER_TRANSPARENT)
                             cv2.imshow(WINDOW_NAME, dst)
@@ -590,8 +620,8 @@ def main(exp, args):
                     killed_num = int(len(killed_num))
 
                     # 撃たれた人と画面に写っている人が同じ場合、終了する
-                    if people_num == killed_num:
-                        break
+                    #if people_num == killed_num:
+                    #    break
                     
                     # 脱落者が出たとき
                     if killed_num != 0:
@@ -600,7 +630,6 @@ def main(exp, args):
                             ret_val, frame = cap.read()
                             frame = cv2.flip(frame, 1)
                             M = cv2.getRotationMatrix2D(center=(800, 100), angle=0, scale=0.7)
-
                             h, w = FRAME_OUT_IMG.shape[:2]
                             dst = cv2.warpAffine(frame, M, dsize=(w, h), dst=FRAME_OUT_IMG, borderMode=cv2.BORDER_TRANSPARENT)
                             cv2.imshow(WINDOW_NAME, dst)
