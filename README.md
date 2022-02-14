@@ -2,8 +2,7 @@
 
 ### ByteTrack
 
-ByteTrackは2021年10月に公開されたオブジェクトトラッキングのモデルです。YOLOXで検出した人のBoundingBoxにByt
-低い検出scoreのBounding Boxも活用する
+ByteTrackは2021年10月に公開されたオブジェクトトラッキングのモデルです。YOLOXで検出した人のBoundingBoxにByteアルゴリズムを適用することで、人にIDを付与することができます。
 
 <p align="center"><img src="assets/sota.png" width="500"/></p>
 
