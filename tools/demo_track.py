@@ -280,7 +280,7 @@ def imageflow(cap, predictor, current_time, args, timelimit):
                     x_width = int(x+width)
 
                     # white_areaが一定以上の場合、obj_idをリストに保存
-                    if white_area > 3 and obj_id not in killed_id:
+                    if white_area > 5 and obj_id not in killed_id:
                         playsound(SOUND, block=False)
                         killed_id.append(obj_id)
                     
@@ -382,6 +382,12 @@ def main(exp, args):
     TUTORIAL_1_IMG = os.path.abspath("tools/image/tutorial_1.png")
     TUTORIAL_2_IMG = os.path.abspath("tools/image/tutorial_2.png")
     TUTORIAL_3_IMG = os.path.abspath("tools/image/tutorial_3.png")
+    END_IMG = os.path.abspath("tools/image/end.png")
+
+    S_RANK_IMG = os.path.abspath("tools/image/s_rank.png")
+    A_RANK_IMG = os.path.abspath("tools/image/a_rank.png")
+    B_RANK_IMG = os.path.abspath("tools/image/b_rank.png")
+    C_RANK_IMG = os.path.abspath("tools/image/c_rank.png")
 
     COUNTDOWN_IMG = IMAGE_DIR_NAME + "countdown.png"
     START_IMG = IMAGE_DIR_NAME + "start.png"
@@ -389,7 +395,6 @@ def main(exp, args):
     GOAL_IMG = IMAGE_DIR_NAME + "goal.png"
     FRAME_OUT_IMG = IMAGE_DIR_NAME + "frame_out.png"
     DROPOUT_IMG = IMAGE_DIR_NAME + "dropout.png"
-    END_IMG = IMAGE_DIR_NAME + "end.png"
 
     READY_IMG = cv2.imread(READY_IMG)
     
@@ -397,6 +402,11 @@ def main(exp, args):
     TUTORIAL_1_IMG = cv2.imread(TUTORIAL_1_IMG)
     TUTORIAL_2_IMG = cv2.imread(TUTORIAL_2_IMG)
     TUTORIAL_3_IMG = cv2.imread(TUTORIAL_3_IMG)
+
+    S_RANK_IMG = cv2.imread(S_RANK_IMG)
+    A_RANK_IMG = cv2.imread(A_RANK_IMG)
+    B_RANK_IMG = cv2.imread(B_RANK_IMG)
+    C_RANK_IMG = cv2.imread(C_RANK_IMG)
 
     COUNTDOWN_IMG = cv2.imread(COUNTDOWN_IMG)
     START_IMG = cv2.imread(START_IMG)
@@ -508,11 +518,11 @@ def main(exp, args):
                 
                 playsound(RED_LINE_SOUND, block=False)
                 TIME_STAMP = time.time()
-                while time.time()-TIME_STAMP<TUTORIAL_TIME:
+                while time.time()-TIME_STAMP<6:
                     ret_val, frame = cap.read()
                     frame = cv2.flip(frame, 1)
                     frame_h, frame_w = frame.shape[:2]
-                    frame = cv2.line(frame,(0,int(frame_h/3)),(int(frame_w),int(frame_h/3)),(0, 0, 255),5)
+                    frame = cv2.line(frame,(0,int(frame_h-40)),(int(frame_w),int(frame_h-40)),(0, 0, 255),5)
                     M = cv2.getRotationMatrix2D(center=(800, 100), angle=0, scale=0.7)
                     h, w = RUN_AWAY_IMG.shape[:2]
                     dst = cv2.warpAffine(frame, M, dsize=(w, h), dst=RUN_AWAY_IMG, borderMode=cv2.BORDER_TRANSPARENT)
@@ -552,10 +562,9 @@ def main(exp, args):
                     playsound(COUNTDOWN_SOUND, block=False)
                     print("ゲームスタートまで %d" % (WAIT_TIME - i))
 
-                time.sleep(1)
                 playsound(DOOM_SOUND, block=False)
                 timestamp = time.time()
-                while time.time()-timestamp<3:
+                while time.time()-timestamp<1:
                     cv2.imshow(WINDOW_NAME, START_IMG)
                     ch = cv2.waitKey(1)
                     if ch == 27 or ch == ord("q") or ch == ord("Q"):
@@ -564,7 +573,7 @@ def main(exp, args):
                 id = []
                 count = 0
                 # ナレーションの繰り返し回数
-                ITERATION = 4
+                ITERATION = 6
                 # 速い音声を何回目以降から流すか
                 FAST_SOUND = 2
                 for i in range(ITERATION):
@@ -589,7 +598,8 @@ def main(exp, args):
                             cv2.imshow(WINDOW_NAME, dst)
                             ch = cv2.waitKey(1)
                             if ch == ord("g") or ch == ord("G"):
-                                print("GAME CLEAR")  
+                                print("GAME CLEAR")
+                                clear_num = count
                                 raise GetOutOfLoop
                     except GetOutOfLoop:
                         playsound(GAME_CLEAR_SOUND, block=False)
@@ -620,8 +630,8 @@ def main(exp, args):
                     killed_num = int(len(killed_num))
 
                     # 撃たれた人と画面に写っている人が同じ場合、終了する
-                    #if people_num == killed_num:
-                    #    break
+                    if people_num == killed_num:
+                        break
                     
                     # 脱落者が出たとき
                     if killed_num != 0:
@@ -638,6 +648,34 @@ def main(exp, args):
                                 break
                     
                     count += 1
+
+                # # 5~4回
+                # if count == 0:
+                #     cv2.imshow(WINDOW_NAME, S_RANK_IMG)
+                #     ch = cv2.waitKey(1)
+                #     if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                #         break
+                #     time.sleep(3)
+                # # 3~2回
+                # elif count <= 3 and count >= 1:
+                #     cv2.imshow(WINDOW_NAME, A_RANK_IMG)
+                #     ch = cv2.waitKey(1)
+                #     if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                #         break
+                #     time.sleep(3)
+                # # 1回
+                # elif clear_num <= 5 and clear_num >= 4:
+                #     cv2.imshow(WINDOW_NAME, B_RANK_IMG)
+                #     ch = cv2.waitKey(1)
+                #     if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                #         break
+                #     time.sleep(3)
+                # else:
+                #     cv2.imshow(WINDOW_NAME, C_RANK_IMG)
+                #     ch = cv2.waitKey(1)
+                #     if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                #         break
+                #     time.sleep(3)
 
                 time.sleep(1)
                 print(id)
