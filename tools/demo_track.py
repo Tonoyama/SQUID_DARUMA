@@ -339,7 +339,8 @@ def imageflow(cap, predictor, current_time, args, timelimit):
                 print("BBOX処理")
                 key = cv2.waitKey(1)
                 if key == ord("g") or key == ord("G"):
-                    return "GAMECLEAR"
+                    clear = None
+                    clear = "GAMECLEAR"
             else:
                 timer.toc()
                 online_im = img_info['raw_img']
@@ -351,7 +352,7 @@ def imageflow(cap, predictor, current_time, args, timelimit):
         else:
             break
         frame_id += 1
-    return killed_id, people_num
+    return killed_id, people_num, clear
 
 
 
@@ -382,7 +383,6 @@ def main(exp, args):
     TUTORIAL_1_IMG = os.path.abspath("tools/image/tutorial_1.png")
     TUTORIAL_2_IMG = os.path.abspath("tools/image/tutorial_2.png")
     TUTORIAL_3_IMG = os.path.abspath("tools/image/tutorial_3.png")
-    END_IMG = os.path.abspath("tools/image/end.png")
 
     S_RANK_IMG = os.path.abspath("tools/image/s_rank.png")
     A_RANK_IMG = os.path.abspath("tools/image/a_rank.png")
@@ -395,6 +395,7 @@ def main(exp, args):
     GOAL_IMG = IMAGE_DIR_NAME + "goal.png"
     FRAME_OUT_IMG = IMAGE_DIR_NAME + "frame_out.png"
     DROPOUT_IMG = IMAGE_DIR_NAME + "dropout.png"
+    END_IMG = IMAGE_DIR_NAME + "end.png"
 
     READY_IMG = cv2.imread(READY_IMG)
     
@@ -613,9 +614,9 @@ def main(exp, args):
 
                     # 推論画面が表示される秒数
                     TIME_LIMIT = 3
-                    imageflow_result = imageflow(cap, predictor, current_time, args, TIME_LIMIT)
+                    killed_id, people_num, clear = imageflow(cap, predictor, current_time, args, TIME_LIMIT)
 
-                    if imageflow_result == "GAMECLEAR":
+                    if clear == "GAMECLEAR":
                         playsound(GAME_CLEAR_SOUND, block=False)
                         TIME_STAMP = time.time()
                         while time.time()-TIME_STAMP<3:
@@ -625,7 +626,7 @@ def main(exp, args):
                                 break
                         break
                     
-                    killed_num, people_num = imageflow(cap, predictor, current_time, args, TIME_LIMIT)
+                    killed_num, people_num, clear = imageflow(cap, predictor, current_time, args, TIME_LIMIT)
                     id += killed_num
                     killed_num = int(len(killed_num))
 
