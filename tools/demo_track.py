@@ -337,9 +337,9 @@ def imageflow(cap, predictor, current_time, args, timelimit):
                 )
                 cv2.imshow(WINDOW_NAME, online_im)
                 print("BBOX処理")
+                clear = None
                 key = cv2.waitKey(1)
                 if key == ord("g") or key == ord("G"):
-                    clear = None
                     clear = "GAMECLEAR"
             else:
                 timer.toc()
@@ -630,8 +630,7 @@ def main(exp, args):
                     id += killed_num
                     killed_num = int(len(killed_num))
 
-                    # 撃たれた人と画面に写っている人が同じ場合、終了する
-                    if people_num == killed_num:
+                    if people_num == killed_num and people_num > 0:
                         break
                     
                     # 脱落者が出たとき
