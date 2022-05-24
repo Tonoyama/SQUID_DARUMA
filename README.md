@@ -3,9 +3,6 @@ YOLO X + ByteTrack による**複数人同時プレイ**に対応した機械学
 
 [![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 
-[![Code Climate](https://codeclimate.com/github/Tonoyama/SQUID_DARUMA/badges/gpa.svg)](https://codeclimate.com/github/Tonoyama/SQUID_DARUMA)
-
-
 ## 手法
 
 ### ByteTrack
