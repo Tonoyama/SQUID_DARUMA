@@ -1,7 +1,6 @@
 YOLO X + ByteTrack による**複数人同時プレイ**に対応した機械学習版「だるまさんがころんだ」です。
 オープンキャンパスの出し物として作りました。
-
-http://img.shields.io/badge/license-MIT-blue.svg?style=flat
+[![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
 
 ## 手法
 
